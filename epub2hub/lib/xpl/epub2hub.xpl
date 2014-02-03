@@ -6,6 +6,7 @@
   xmlns:cx="http://xmlcalabash.com/ns/extensions" 
   xmlns:cxf="http://xmlcalabash.com/ns/extensions/fileutils"
   xmlns:dbk="http://docbook.org/ns/docbook"
+  xmlns:hub = "http://www.le-tex.de/namespace/hub"
   xmlns:epub2hub="http://www.le-tex.de/namespace/epub2hub"
   xmlns:html2hub="http://www.le-tex.de/namespace/html2hub"
   xmlns:transpect="http://www.le-tex.de/namespace/transpect"
@@ -22,7 +23,9 @@
     <p:document href="../../schema/Hub/hub.rng"/>
   </p:input>
 
-  <p:output port="hub" primary="true" sequence="true"/>
+  <p:output port="hub" primary="true" sequence="false">
+    <p:pipe port="result" step="single-document-with-xml-model"/>
+  </p:output>
   <p:output port="html" primary="false">
     <p:pipe port="result" step="epub-unzip"/>
   </p:output>
@@ -46,6 +49,7 @@
   <p:import href="http://transpect.le-tex.de/xproc-util/store-debug/store-debug.xpl"/>
   <p:import href="http://transpect.le-tex.de/calabash-extensions/ltx-lib.xpl" />
   <p:import href="http://transpect.le-tex.de/calabash-extensions/ltx-validate-with-rng/rng-validate-to-PI.xpl"/>
+  <p:import href="http://transpect.le-tex.de/xproc-util/xml-model/prepend-hub-xml-model.xpl" />
 
   <p:variable name="basename" select="replace($epubfile, '^(.+?)([^/\\]+)\.epub$', '$2')"/>
   <p:variable name="status-dir-uri" select="concat($debug-dir-uri, '/status')"/>
@@ -158,9 +162,16 @@
   </p:for-each>
   
 
-  <p:wrap-sequence wrapper="dbk:book" name="single-document">
+  <p:wrap-sequence wrapper="book" wrapper-namespace="http://docbook.org/ns/docbook" name="single-document">
     <p:documentation>Assembles Hub xml files resulting from step "html2hub-conversion" (puts chapters ino book element). </p:documentation>
   </p:wrap-sequence>
+
+  <letex:prepend-hub-xml-model name="single-document-with-xml-model">
+    <p:with-option name="hub-version" select="$hub-version"/>
+  </letex:prepend-hub-xml-model>
+
+
+  <!-- p:xslt add /book/info -->
 
 
   <letex:validate-with-rng-PI name="rng2pi">
@@ -191,5 +202,6 @@
     <p:with-option name="status-dir-uri" select="$status-dir-uri"/>
   </letex:simple-progress-msg>
 
+  <p:sink/>
 
 </p:declare-step>
