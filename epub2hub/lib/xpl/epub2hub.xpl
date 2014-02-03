@@ -151,6 +151,7 @@
     <html2hub:convert name="html2hub">
       <p:with-option name="debug" select="$debug" />
       <p:with-option name="debug-dir-uri" select="$debug-dir-uri" />
+      <p:with-option name="prepend-hub-xml-model" select="'false'" />
     </html2hub:convert>
 
     <letex:store-debug>
