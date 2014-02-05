@@ -23,7 +23,7 @@
     <p:document href="../../schema/Hub/hub.rng"/>
   </p:input>
 
-  <p:output port="hub" primary="true" sequence="false">
+  <p:output port="result" primary="true" sequence="false">
     <p:pipe port="result" step="single-document-with-xml-model"/>
   </p:output>
   
