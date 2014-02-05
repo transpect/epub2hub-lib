@@ -26,9 +26,6 @@
   <p:output port="hub" primary="true" sequence="false">
     <p:pipe port="result" step="single-document-with-xml-model"/>
   </p:output>
-  <p:output port="html" primary="false">
-    <p:pipe port="result" step="epub-unzip"/>
-  </p:output>
   
   <p:option name="epubfile" required="true"/>
   <p:option name="hub-version" select="'1.1'"/>
@@ -79,6 +76,9 @@
   </letex:unzip>
 
   <p:xslt name="unzip">
+    <p:input port="source">
+      <p:pipe port="result" step="epub-unzip"/>
+    </p:input>
     <p:input port="stylesheet">
       <p:inline>
         <xsl:stylesheet version="2.0">
@@ -97,12 +97,6 @@
   </p:xslt>
 
 
-  <p:load name="load-stylesheet" href="../xsl/get-filenames-from-spine.xsl">
-    <p:documentation>XSL that provides a list of CSS and HTML files in correct order. The order results from the spine element in the rootfile declared in container.xml.</p:documentation>
-  </p:load>
-
-  <p:sink/>
-
   <p:load name="container">
     <p:with-option name="href" select="concat(/c:files/@xml:base, 'META-INF/container.xml')">
       <p:pipe port="result" step="unzip"/>
@@ -110,9 +104,50 @@
     <p:documentation>Loads container.xml as point of entry.</p:documentation>
   </p:load>
 
-  <p:xslt name="filelist" initial-mode="epub2hub:get-filenames-from-spine">
+  <p:sink/>
+
+  <p:xslt name="rootfile">
+    <p:documentation>XSL that provides the rootfile's uri.</p:documentation>
     <p:input port="source">
       <p:pipe port="result" step="container"/>
+    </p:input>
+    <p:input port="parameters"><p:empty/></p:input>
+    <p:input port="stylesheet">
+      <p:inline>
+        <xsl:stylesheet version="2.0">
+          <xsl:param name="base-dir-uri"/>
+          <xsl:template match="*:container">
+            <c:rootfile>
+              <xsl:value-of select="concat($base-dir-uri, *:rootfiles/*:rootfile/@full-path)"/>
+            </c:rootfile>
+          </xsl:template>
+        </xsl:stylesheet>
+      </p:inline>
+    </p:input>
+    <p:with-param name="base-dir-uri" select="/c:files/@xml:base">
+      <p:pipe port="result" step="unzip"/>
+    </p:with-param>
+  </p:xslt>
+  
+  <p:sink/>
+
+  <p:load name="load-rootfile">
+    <p:with-option name="href" select="/c:rootfile">
+      <p:pipe port="result" step="rootfile"/>
+    </p:with-option>
+  </p:load>
+
+  <p:sink/>
+
+  <p:load name="load-stylesheet" href="../xsl/get-filenames-from-spine.xsl">
+    <p:documentation>XSL that provides a list of CSS and HTML files in correct order. The order results from the spine element in the rootfile declared in container.xml.</p:documentation>
+  </p:load>
+
+  <p:sink/>
+
+  <p:xslt name="filelist" initial-mode="epub2hub:get-filenames-from-spine">
+    <p:input port="source">
+      <p:pipe port="result" step="load-rootfile"/>
       <p:pipe port="result" step="unzip"/>
     </p:input>
     <p:input port="stylesheet">
@@ -120,13 +155,13 @@
     </p:input>
     <p:documentation>See step "load-stylesheet".</p:documentation>
   </p:xslt>
-  
+
   <letex:store-debug pipeline-step="epub2hub/filelist">
     <p:with-option name="active" select="$debug"/>
     <p:with-option name="base-uri" select="$debug-dir-uri"/>
   </letex:store-debug>
 
-
+  
   <p:for-each name="html2hub-conversion">
 
     <p:documentation>Converts all (x)html files listed in the filelist created in step "filelist" to Hub xml.</p:documentation>
@@ -152,6 +187,7 @@
       <p:with-option name="debug" select="$debug" />
       <p:with-option name="debug-dir-uri" select="$debug-dir-uri" />
       <p:with-option name="prepend-hub-xml-model" select="'false'" />
+      <p:with-option name="archive-dir-uri" select="$epubfile" />
     </html2hub:convert>
 
     <letex:store-debug>
@@ -161,18 +197,53 @@
     </letex:store-debug>
 
   </p:for-each>
-  
+    
 
   <p:wrap-sequence wrapper="book" wrapper-namespace="http://docbook.org/ns/docbook" name="single-document">
-    <p:documentation>Assembles Hub xml files resulting from step "html2hub-conversion" (puts chapters ino book element). </p:documentation>
+    <p:documentation>Assembles Hub xml files resulting from step "html2hub-conversion" (puts chapters into book element). </p:documentation>
   </p:wrap-sequence>
+
+
+  <p:load name="load-metadata-stylesheet" href="../xsl/get-metadata-from-rootfile.xsl">
+    <p:documentation>XSL transforming metadata children in the rootfile into keywords in the result document.</p:documentation>
+  </p:load>
+
+  <p:xslt name="metadata">
+    <p:input port="source">
+      <p:pipe port="result" step="load-rootfile"/>
+      <p:pipe port="result" step="single-document"/>
+    </p:input>
+    <p:input port="stylesheet">
+      <p:pipe port="result" step="load-metadata-stylesheet"/>
+    </p:input>
+  </p:xslt>
+
+
+  <p:sink/>
+
+  <p:load name="load-hub-keywords-stylesheet" href="../../html2hub/xsl/hub-keywords.xsl"/>
+
+  <p:xslt name="hub-keywords">
+    <p:input port="source">
+      <p:pipe port="result" step="metadata"/>
+    </p:input>
+    <p:input port="stylesheet">
+      <p:pipe port="result" step="load-hub-keywords-stylesheet"/>
+    </p:input>
+    <p:with-param name="archive-dir-uri" select="$epubfile"/>
+    <p:with-param name="base-dir-uri" select="/c:files/@xml:base">
+      <p:pipe port="result" step="unzip"/>
+    </p:with-param>
+    <p:with-param name="base-name" select="replace($epubfile, '^(.+?)([^/\\]+\.epub)$', '$2')"/>
+    <p:with-param name="src-type" select="concat('epub', replace(/*:package/@version, '\.', ''))">
+      <p:pipe port="result" step="load-rootfile"/>
+    </p:with-param>
+  </p:xslt>
+
 
   <letex:prepend-hub-xml-model name="single-document-with-xml-model">
     <p:with-option name="hub-version" select="$hub-version"/>
   </letex:prepend-hub-xml-model>
-
-
-  <!-- p:xslt add /book/info -->
 
 
   <letex:validate-with-rng-PI name="rng2pi">
