@@ -118,8 +118,14 @@
           <xsl:param name="base-dir-uri"/>
           <xsl:template match="*:container">
             <c:rootfile>
-              <xsl:value-of select="concat($base-dir-uri, *:rootfiles/*:rootfile/@full-path)"/>
+              <xsl:value-of select="concat($base-dir-uri, *:rootfiles/*:rootfile[1]/@full-path)"/>
             </c:rootfile>
+            <xsl:if test="count(*:rootfiles/*:rootfile) eq 0">
+              <xsl:message select="'epub2hub WARNING: No rootfile element found in container.xml.'"/>
+            </xsl:if>
+            <xsl:if test="count(*:rootfiles/*:rootfile) gt 1">
+              <xsl:message select="'epub2hub WARNING: More than one rootfile element found in container.xml.'"/>
+            </xsl:if>
           </xsl:template>
         </xsl:stylesheet>
       </p:inline>
