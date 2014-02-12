@@ -65,6 +65,8 @@
     <p:with-option name="status-dir-uri" select="$status-dir-uri"/>
   </letex:simple-progress-msg>
   
+  <cx:message message=" ################# INFO: STATUS OF EPUB2HUB IS ALPHA, HTML2HUB: WORK IN PROGRESS #################"/>
+
   <p:sink/>
 
 
