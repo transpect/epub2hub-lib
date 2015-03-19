@@ -47,6 +47,7 @@
   <p:import href="http://transpect.le-tex.de/calabash-extensions/ltx-lib.xpl" />
   <p:import href="http://transpect.le-tex.de/calabash-extensions/ltx-validate-with-rng/rng-validate-to-PI.xpl"/>
   <p:import href="http://transpect.le-tex.de/xproc-util/xml-model/prepend-hub-xml-model.xpl" />
+	<p:import href="http://transpect.le-tex.de/xproc-util/file-uri/file-uri.xpl"/>
 
   <p:variable name="basename" select="replace($epubfile, '^(.+?)([^/\\]+)\.epub$', '$2')"/>
   <p:variable name="status-dir-uri" select="concat($debug-dir-uri, '/status')"/>
@@ -69,10 +70,13 @@
 
   <p:sink/>
 
-
+  <transpect:file-uri name="file-uri">
+    <p:with-option name="filename" select="$epubfile"><p:empty/></p:with-option>
+  </transpect:file-uri>
+  
   <letex:unzip name="epub-unzip">
-    <p:with-option name="zip" select="$epubfile" />
-    <p:with-option name="dest-dir" select="concat($epubfile, '.tmp')"><p:empty/></p:with-option>
+    <p:with-option name="zip" select="/*/@os-path" />
+    <p:with-option name="dest-dir" select="concat(/*/@os-path, '.tmp')"/>
     <p:with-option name="overwrite" select="'yes'" />
     <p:documentation>Unzips the ePub file.</p:documentation>
   </letex:unzip>
