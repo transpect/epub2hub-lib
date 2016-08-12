@@ -1,18 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <p:declare-step 
   xmlns:p="http://www.w3.org/ns/xproc"
-  xmlns:bc="http://transpect.le-tex.de/book-conversion"
+  xmlns:bc="http://transpect.io/book-conversion"
   xmlns:c="http://www.w3.org/ns/xproc-step"
   xmlns:cx="http://xmlcalabash.com/ns/extensions" 
   xmlns:cxf="http://xmlcalabash.com/ns/extensions/fileutils"
   xmlns:dbk="http://docbook.org/ns/docbook"
-  xmlns:hub = "http://www.le-tex.de/namespace/hub"
-  xmlns:epub2hub="http://www.le-tex.de/namespace/epub2hub"
-  xmlns:html2hub="http://www.le-tex.de/namespace/html2hub"
-  xmlns:transpect="http://www.le-tex.de/namespace/transpect"
-  xmlns:letex="http://www.le-tex.de/namespace"
+  xmlns:hub="http://transpect.io/hub"
+  xmlns:epub2hub="http://transpect.io/epub2hub"
+  xmlns:html2hub="http://transpect.io/html2hub" 
+  xmlns:tr="http://transpect.io"
   xmlns:xsl="http://www.w3.org/1999/XSL/Transform" 
   name="epub2hub"
+  type="tr:epub2hub"
   version="1.0">
   
   <p:input port="params" kind="parameter" primary="true">
@@ -41,19 +41,18 @@
   <p:option name="check" required="false" select="'yes'"/>
   
   <p:import href="http://xmlcalabash.com/extension/steps/library-1.0.xpl" />
-  <p:import href="http://transpect.le-tex.de/html2hub/xpl/html2hub.xpl"/>
-  <p:import href="http://transpect.le-tex.de/book-conversion/converter/xpl/simple-progress-msg.xpl"/>
-  <p:import href="http://transpect.le-tex.de/xproc-util/store-debug/store-debug.xpl"/>
-  <p:import href="http://transpect.le-tex.de/calabash-extensions/ltx-lib.xpl" />
-  <p:import href="http://transpect.le-tex.de/calabash-extensions/ltx-validate-with-rng/rng-validate-to-PI.xpl"/>
-  <p:import href="http://transpect.le-tex.de/xproc-util/xml-model/prepend-hub-xml-model.xpl" />
-	<p:import href="http://transpect.le-tex.de/xproc-util/file-uri/file-uri.xpl"/>
+  <p:import href="http://transpect.io/calabash-extensions/unzip-extension/unzip-declaration.xpl"/>
+  <p:import href="http://transpect.io/html2hub/xpl/html2hub.xpl"/>
+  <p:import href="http://transpect.io/xproc-util/simple-progress-msg/xpl/simple-progress-msg.xpl"/>
+  <p:import href="http://transpect.io/xproc-util/store-debug/xpl/store-debug.xpl"/>
+  <p:import href="http://transpect.io/calabash-extensions/rng-extension/xpl/rng-validate-to-PI.xpl"/>
+  <p:import href="http://transpect.io/xproc-util/xml-model/xpl/prepend-hub-xml-model.xpl" />
+	<p:import href="http://transpect.io/xproc-util/file-uri/xpl/file-uri.xpl"/>
 
   <p:variable name="basename" select="replace($epubfile, '^(.+?)([^/\\]+)\.epub$', '$2')"/>
   <p:variable name="status-dir-uri" select="concat($debug-dir-uri, '/status')"/>
 
-
-  <letex:simple-progress-msg name="start-msg">
+  <tr:simple-progress-msg name="start-msg">
     <p:with-option name="file" select="concat('epub2html-start.',$basename,'.txt')"/>
     <p:input port="msgs">
       <p:inline>
@@ -64,22 +63,22 @@
       </p:inline>
     </p:input>
     <p:with-option name="status-dir-uri" select="$status-dir-uri"/>
-  </letex:simple-progress-msg>
-  
+  </tr:simple-progress-msg>
+<!--  neccessary to look at the html2hub progress-->
   <cx:message message=" ################# INFO: STATUS OF EPUB2HUB IS ALPHA, HTML2HUB: WORK IN PROGRESS #################"/>
 
   <p:sink/>
 
-  <transpect:file-uri name="file-uri">
+  <tr:file-uri name="file-uri">
     <p:with-option name="filename" select="$epubfile"><p:empty/></p:with-option>
-  </transpect:file-uri>
+  </tr:file-uri>
   
-  <letex:unzip name="epub-unzip">
+  <tr:unzip name="epub-unzip">
     <p:with-option name="zip" select="/*/@os-path" />
     <p:with-option name="dest-dir" select="concat(/*/@os-path, '.tmp')"/>
     <p:with-option name="overwrite" select="'yes'" />
     <p:documentation>Unzips the ePub file.</p:documentation>
-  </letex:unzip>
+  </tr:unzip>
 
   <p:xslt name="unzip">
     <p:input port="source">
@@ -141,6 +140,11 @@
     </p:with-param>
   </p:xslt>
   
+  <tr:store-debug pipeline-step="epub2hub/rootfile" extension="xml">
+    <p:with-option name="active" select="$debug"/>
+    <p:with-option name="base-uri" select="$debug-dir-uri"/>
+  </tr:store-debug>
+  
   <p:sink/>
 
   <p:load name="load-rootfile">
@@ -151,49 +155,51 @@
 
   <p:sink/>
 
-  <p:load name="load-stylesheet" href="../xsl/get-filenames-from-spine.xsl">
-    <p:documentation>XSL that provides a list of CSS and HTML files in correct order. The order results from the spine element in the rootfile declared in container.xml.</p:documentation>
-  </p:load>
-
-  <p:sink/>
-
-  <p:xslt name="filelist" initial-mode="epub2hub:get-filenames-from-spine">
+  <p:xslt name="filelist">
     <p:input port="source">
       <p:pipe port="result" step="load-rootfile"/>
       <p:pipe port="result" step="unzip"/>
     </p:input>
     <p:input port="stylesheet">
-      <p:pipe step="load-stylesheet" port="result"/>
+      <p:document href="../xsl/get-filenames-from-spine.xsl">
+        <p:documentation>XSL that provides a list of CSS and HTML files in correct order. The order results from the spine element in the rootfile declared in container.xml.</p:documentation>
+      </p:document>
     </p:input>
     <p:documentation>See step "load-stylesheet".</p:documentation>
   </p:xslt>
 
-  <letex:store-debug pipeline-step="epub2hub/filelist">
+  <tr:store-debug pipeline-step="epub2hub/filelist">
     <p:with-option name="active" select="$debug"/>
     <p:with-option name="base-uri" select="$debug-dir-uri"/>
-  </letex:store-debug>
-
+  </tr:store-debug>
   
-  <p:for-each name="html2hub-conversion">
-
+  <p:for-each name="html2hub-conversion" cx:depends-on="filelist">
+<!-- guessing: there are no iteration items for the wrap-sequence function at the end-->
     <p:documentation>Converts all (x)html files listed in the filelist created in step "filelist" to Hub xml.</p:documentation>
     <p:iteration-source select="/epub2hub:filelist/file[@type='xhtml']"/>
     <p:variable name="base-name" select="file/@name"/>
     <p:variable name="base-dir" select="/c:files/@xml:base">
       <p:pipe port="result" step="unzip"/>
     </p:variable>
-
+    
     <p:load name="load-html">
       <p:with-option name="href" select="concat($base-dir,$base-name)"/>
     </p:load>
 
     <p:add-xml-base name="add-xml-base"/>
-
-    <letex:store-debug>
+    
+    <tr:store-debug>
+      <p:with-option name="pipeline-step" select="concat('epub2hub/',$base-name)"/>
+      <p:with-option name="active" select="$debug"/>
+      <p:with-option name="base-uri" select="$debug-dir-uri"/>
+    </tr:store-debug>
+    
+<!--
+    <tr:store-debug>
       <p:with-option name="pipeline-step" select="concat('epub2hub/html/', tokenize($base-name, '/')[last()])"/>
       <p:with-option name="active" select="$debug"/>
       <p:with-option name="base-uri" select="$debug-dir-uri"/>
-    </letex:store-debug>
+    </tr:store-debug>-->
 
     <html2hub:convert name="html2hub">
       <p:with-option name="debug" select="$debug" />
@@ -202,11 +208,11 @@
       <p:with-option name="archive-dir-uri" select="$epubfile" />
     </html2hub:convert>
 
-    <letex:store-debug>
+    <tr:store-debug>
       <p:with-option name="pipeline-step" select="concat('epub2hub/hub/', replace(tokenize($base-name, '/')[last()], '\.[^.]+$', ''), '.hub')"/>
       <p:with-option name="active" select="$debug"/>
       <p:with-option name="base-uri" select="$debug-dir-uri"/>
-    </letex:store-debug>
+    </tr:store-debug>
 
   </p:for-each>
     
@@ -214,6 +220,8 @@
   <p:wrap-sequence wrapper="book" wrapper-namespace="http://docbook.org/ns/docbook" name="single-document">
     <p:documentation>Assembles Hub xml files resulting from step "html2hub-conversion" (puts chapters into book element). </p:documentation>
   </p:wrap-sequence>
+ 
+  <p:sink/>
 
 
   <p:load name="load-metadata-stylesheet" href="../xsl/get-metadata-from-rootfile.xsl">
@@ -229,7 +237,6 @@
       <p:pipe port="result" step="load-metadata-stylesheet"/>
     </p:input>
   </p:xslt>
-
 
   <p:sink/>
 
@@ -252,28 +259,25 @@
     </p:with-param>
   </p:xslt>
 
-
-  <letex:prepend-hub-xml-model name="single-document-with-xml-model">
+  <tr:prepend-hub-xml-model name="single-document-with-xml-model">
     <p:with-option name="hub-version" select="$hub-version"/>
-  </letex:prepend-hub-xml-model>
+  </tr:prepend-hub-xml-model>
 
-
-  <letex:validate-with-rng-PI name="rng2pi">
+  <tr:validate-with-rng-PI name="rng2pi">
     <p:with-option name="debug" select="$debug"/>
     <p:with-option name="debug-dir-uri" select="$debug-dir-uri"/>
     <p:input port="schema">
       <p:pipe port="schema" step="epub2hub"/>
     </p:input>
-  </letex:validate-with-rng-PI>
+  </tr:validate-with-rng-PI>
   
-  <letex:store-debug>
+  <tr:store-debug>
     <p:with-option name="pipeline-step" select="concat('rngvalid/',$basename,'.with-PIs')"/>
     <p:with-option name="active" select="$debug"/>
     <p:with-option name="base-uri" select="$debug-dir-uri"/>
-  </letex:store-debug>
+  </tr:store-debug>
 
-
-  <letex:simple-progress-msg name="success-msg">
+  <tr:simple-progress-msg name="success-msg">
     <p:with-option name="file" select="concat('epub2html-success.',$basename,'.txt')"/>
     <p:input port="msgs">
       <p:inline>
@@ -284,7 +288,7 @@
       </p:inline>
     </p:input>
     <p:with-option name="status-dir-uri" select="$status-dir-uri"/>
-  </letex:simple-progress-msg>
+  </tr:simple-progress-msg>
 
   <p:sink/>
 
